@@ -9,12 +9,15 @@ export interface BaseQuestion {
   instructions: string;
 }
 
+/** Descriptions of the true/false outcomes; the engine reads only these keys. */
+export interface NoulCriteria {
+  true?: string;
+  false?: string;
+}
+
 export interface NoulQuestion extends BaseQuestion {
   type: "noul";
-  criteria?: {
-    pos?: string;
-    neg?: string;
-  } | null;
+  criteria?: NoulCriteria | null;
 }
 
 export interface ChoiceQuestion extends BaseQuestion {

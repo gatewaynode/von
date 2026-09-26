@@ -135,7 +135,7 @@ export class VonClient {
   ): Promise<number> {
     const criteria =
       posCriteria || negCriteria
-        ? { pos: posCriteria, neg: negCriteria }
+        ? { true: posCriteria, false: negCriteria }
         : undefined;
     const q = noul(instructions, criteria);
     const resp = await this.systemOne({

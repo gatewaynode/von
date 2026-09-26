@@ -19,10 +19,20 @@ describe("Von JavaScript/TypeScript SDK", () => {
   });
 
   it("builds valid Noul questions", () => {
-    const q = noul("Is database down?", { pos: "Down", neg: "Up" });
+    const q = noul("Is database down?", { true: "Down", false: "Up" });
     expect(q.type).toBe("noul");
-    expect(q.criteria?.pos).toBe("Down");
-    expect(q.criteria?.neg).toBe("Up");
+    expect(q.criteria).toEqual({ true: "Down", false: "Up" });
+  });
+
+  it("maps legacy pos/neg Noul criteria onto the true/false keys the engine reads", () => {
+    expect(noul("Is database down?", { pos: "Down", neg: "Up" }).criteria).toEqual({
+      true: "Down",
+      false: "Up",
+    });
+    expect(noul("Is database down?", { pos: "Down" }).criteria).toEqual({ true: "Down" });
+    expect(noul("Is database down?", {}).criteria).toBeNull();
+    expect(noul("Is database down?").criteria).toBeNull();
+    expect(() => noul("Is database down?", { pos: "Down", true: "Also down" })).toThrow();
   });
 
   it("builds valid Score questions", () => {
@@ -102,6 +112,35 @@ describe("Von JavaScript/TypeScript SDK", () => {
       const ans = await client.decide("Charge me twice!", ["refund", "tech"]);
       expect(ans.choice).toBe("refund");
       expect(ans.confidence).toBe(0.88);
+    } finally {
+      globalThis.fetch = orig;
+    }
+  });
+  it("judge sends explicit criteria under the true/false keys", async () => {
+    let capturedBody: any = null;
+    const mockFetch = async (_url: string, init: any) => {
+      capturedBody = JSON.parse(init.body);
+      return {
+        ok: true,
+        json: async () => ({
+          model: "von-1.1.0",
+          answers: { verdict: { type: "noul", noul: 0.91 } },
+          usage: { input_tokens: 9, output_tokens: 1 },
+        }),
+      };
+    };
+
+    const orig = globalThis.fetch;
+    globalThis.fetch = mockFetch as any;
+
+    try {
+      const client = new VonClient();
+      const p = await client.judge("Pool exhausted", "Is the database down?", "Down", "Up");
+      expect(p).toBe(0.91);
+      expect(capturedBody.questions.verdict.criteria).toEqual({ true: "Down", false: "Up" });
+
+      await client.judge("Pool exhausted", "Is the database down?");
+      expect(capturedBody.questions.verdict.criteria).toBeNull();
     } finally {
       globalThis.fetch = orig;
     }
